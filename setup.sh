@@ -37,6 +37,8 @@ _vsi_env_default () {
 _vsi_env_default XDG_CONFIG_HOME "$HOME/.config"
 _vsi_env_default INSTALL_FOLDER "$XDG_CONFIG_HOME/very-shell-installer"
 
+_vsi_env_default VSI_BRANCH master
+
 ### Actual script
 
 # Requirements
@@ -115,7 +117,7 @@ script_file="$INSTALL_FOLDER/$script_id.sh"
 
 if [ ! -e "$script_file" ]; then
     curl -# -s --fail \
-        https://raw.githubusercontent.com/kenzierocks/very-shell-installer/master/setup/"$script_id".sh \
+        https://raw.githubusercontent.com/kenzierocks/very-shell-installer/"$VSI_BRANCH"/setup/"$script_id".sh \
             >"$script_file" \
         || { _vsi_echo "Failed to fetch script."; rm -f "$script_file" || true; exit 1; }
 fi
