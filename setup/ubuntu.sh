@@ -9,9 +9,9 @@ _vsi_is_cmd_present () {
 
 ### Actual script
 
-sudo -p 'Hi, %u, please enter your password to continue using VSI:' true
+sudo -p 'Hi, %u, please enter your password to continue using VSI: ' true
 
-alias _vsi_sudo=sudo -n -H
+alias _vsi_sudo="sudo -n -H"
 
 if ! _vsi_is_cmd_present apt ; then
     _vsi_sudo apt-get install apt
