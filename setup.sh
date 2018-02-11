@@ -125,3 +125,13 @@ fi
 chmod +x "$script_file"
 "$script_file" "${script_args[@]}"
 
+cd "$INSTALL_FOLDER"
+if [ ! -d git-repo/.git ]; then
+    git clone https://github.com/kenzierocks/very-shell-installer --branch "$VSI_BRANCH" --single-branch git-repo
+    cd git-repo
+else
+    cd git-repo
+    git checkout "$VSI_BRANCH"
+fi
+
+python3 ./main.py
