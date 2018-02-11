@@ -14,12 +14,25 @@ _vsi_read_os_release_field () {
     eval printf %s $raw_value
 }
 
+_vsi_get_script () {
+    curl -# -s --fail \
+        https://raw.githubusercontent.com/kenzierocks/very-shell-installer/"$VSI_BRANCH"/setup/"$1".sh \
+            >"$2"
+}
+
 _vsi_echo () {
-    printf "%s\n" "$1" >&2
+    printf "[#VSI#] %s\n" "$1" >&2
 }
 
 _vsi_is_cmd_present () {
 	command -v "$1" > /dev/null 2>&1
+}
+
+_vsi_require_cmd () {
+    if ! _vsi_is_cmd_present "$1"; then
+        _vsi_echo "'$1' is required to run this script."
+        exit 2
+    fi
 }
 
 _vsi_env_default () {
@@ -42,10 +55,8 @@ _vsi_env_default VSI_BRANCH master
 ### Actual script
 
 # Requirements
-if ! _vsi_is_cmd_present curl; then
-    _vsi_echo "cURL is required to run this script."
-    exit 2
-fi
+_vsi_require_cmd curl
+_vsi_require_cmd md5sum
 
 _vsi_echo "Creating installation folder at $INSTALL_FOLDER..."
 mkdir -p "$INSTALL_FOLDER"
@@ -113,24 +124,48 @@ esac
 
 _vsi_echo "Fetching script $script_id..."
 
+dl_wip_file="$INSTALL_FOLDER/.dl.sh"
 script_file="$INSTALL_FOLDER/$script_id.sh"
 
-if [ ! -e "$script_file" ]; then
-    curl -# -s --fail \
-        https://raw.githubusercontent.com/kenzierocks/very-shell-installer/"$VSI_BRANCH"/setup/"$script_id".sh \
-            >"$script_file" \
-        || { _vsi_echo "Failed to fetch script."; rm -f "$script_file" || true; exit 1; }
+set +e
+_vsi_get_script "$script_id" "$dl_wip_file"
+_get_script_exit_code="$?"
+set -e
+
+if [ ! -f "$script_file" ]; then
+    if [ "$_get_script_exit_code" -ne 0 ]; then
+        _vsi_echo "Failed to fetch script."
+        exit 1
+    fi
+    _vsi_echo "Script downloaded."
+    mv "$dl_wip_file" "$script_file"
+elif [ "$_get_script_exit_code" -eq 0 ]; then
+    remote_md5="$(md5sum <"$dl_wip_file")"
+    local_md5="$(md5sum <"$script_file")"
+    _vsi_echo "Verifying script version... (remote: $remote_md5; local: $local_md5)"
+    if [ "$remote_md5" != "$local_md5" ]; then
+        _vsi_echo "Script updated."
+        mv "$dl_wip_file" "$script_file"
+    fi
+else
+    _vsi_echo "Warning: unable to check for new script version."
 fi
+
+_vsi_echo "Executing script..."
 
 chmod +x "$script_file"
 "$script_file" "${script_args[@]}"
 
 cd "$INSTALL_FOLDER"
 if [ ! -d git-repo/.git ]; then
-    git clone https://github.com/kenzierocks/very-shell-installer --branch "$VSI_BRANCH" --single-branch git-repo
+    _vsi_echo "Cloning VSI from $VSI_BRANCH..."
+    git clone https://github.com/kenzierocks/very-shell-installer --branch "$VSI_BRANCH" git-repo
     cd git-repo
 else
     cd git-repo
+    _vsi_echo "Fetching..."
+    git fetch
+    _vsi_echo "Checking out $VSI_BRANCH..."
     git checkout "$VSI_BRANCH"
 fi
 
